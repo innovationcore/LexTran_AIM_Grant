@@ -8,9 +8,9 @@ from get_weather import weather
 from scipy.stats import ttest_ind
 
 
-def forecast_dwell(df_1, df_2):
+def forecast_dwell(df_1, df_2, df_3):
     new_dfs = []
-    for df in [df_1, df_2]:
+    for df in [df_1, df_2, df_3]:
         df = df.sort_values(by=['Date', 'Arrival'])
 
         # Look at dwell time only for now
@@ -41,22 +41,25 @@ def forecast_dwell(df_1, df_2):
         new_dfs.append(df_reindexed)
     spring = new_dfs[0]
     fall = new_dfs[1]
+    pilot = new_dfs[2]
     test_length = 15
-    train_fall = fall.iloc[:-test_length]
-    test_fall = fall.iloc[-test_length:]
+    train_pilot = pilot.iloc[:-test_length]
+    test_pilot = pilot.iloc[-test_length:]
 
     spring_series = TimeSeries.from_dataframe(spring, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
-    fall_train_series = TimeSeries.from_dataframe(train_fall, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
-    fall_test_series = TimeSeries.from_dataframe(test_fall, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
+    fall_series = TimeSeries.from_dataframe(fall, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
+    pilot_train_series = TimeSeries.from_dataframe(train_pilot, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
+    pilot_test_series = TimeSeries.from_dataframe(test_pilot, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
 
     transformer = Scaler()
-    transformer.fit([spring_series, fall_train_series])
+    transformer.fit([spring_series, fall_series, pilot_train_series])
     spring_series = transformer.transform(spring_series)
-    fall_train_series = transformer.transform(fall_train_series)
-    fall_test_series = transformer.transform(fall_test_series)
+    fall_series = transformer.transform(fall_series)
+    pilot_train_series = transformer.transform(pilot_train_series)
+    pilot_test_series = transformer.transform(pilot_test_series)
 
     covariates = []
-    for df in [spring, fall]:
+    for df in [spring, fall, pilot]:
         covariate = TimeSeries.from_dataframe(df, 'Date', 'day', freq='B')
         scaler = Scaler()
         covariate = scaler.fit_transform(covariate)
@@ -78,24 +81,36 @@ def forecast_dwell(df_1, df_2):
         covariates.append(covariate)
     spring_covariates = covariates[0]
     fall_covariates = covariates[1]
+    pilot_covariates = covariates[2]
 
     model = ARIMA(q=0, d=1, p=8)
     model.fit(spring_series, future_covariates=spring_covariates)
-    model.fit(fall_train_series, future_covariates=fall_covariates)
-    forecast = model.predict(len(test_fall), future_covariates=fall_covariates)
-    forecast = forecast.slice_intersect(fall_test_series)
-    error = rmse(fall_test_series, forecast)
+    model.fit(fall_series, future_covariates=fall_covariates)
+    model.fit(pilot_train_series, future_covariates=pilot_covariates)
+    forecast = model.predict(len(test_pilot), future_covariates=pilot_covariates)
+    forecast = forecast.slice_intersect(pilot_test_series)
+    error = rmse(pilot_test_series, forecast)
     print(error)
     # plt.plot(spring['Date'], spring_series.values(), color='black', label='spring')
-    plt.plot(fall['Date'][:-test_length], fall_train_series.values(), color='black', label='fall')
-    plt.plot(fall['Date'][-test_length:], fall_test_series.values(), color='black', label='test')
-    plt.plot(fall['Date'][-test_length:], forecast.values(), color='blue', label='forecast')
+    plt.plot(pilot['Date'][:-test_length], pilot_train_series.values(), color='black', label='fall')
+    plt.plot(pilot['Date'][-test_length:], pilot_test_series.values(), color='black', label='test')
+    plt.plot(pilot['Date'][-test_length:], forecast.values(), color='blue', label='forecast')
     plt.legend()
+    plt.xticks(rotation=30)
+    plt.title('Forecasting Dwell Time by Day- RMSE: {:.4f}'.format(error))
     plt.show()
 
-def forecast_travel(df_1, df_2):
+    plt.plot(spring['Date'], spring['Dwell (s)'], label='Spring 2023')
+    plt.plot(fall['Date'], fall['Dwell (s)'], label='Fall 2023')
+    plt.plot(pilot['Date'], pilot['Dwell (s)'], label='Spring 2024')
+    plt.legend()
+    plt.xticks(rotation=30)
+    plt.title('Dwell Time by Semester')
+    plt.show()
+
+def forecast_travel(df_1, df_2, df_3):
     new_dfs = []
-    for df in [df_1, df_2]:
+    for df in [df_1, df_2, df_3]:
         df = df.dropna()
         df = df.sort_values(by=['Date', 'Arrival'])
 
@@ -127,22 +142,25 @@ def forecast_travel(df_1, df_2):
         new_dfs.append(df_reindexed)
     spring = new_dfs[0]
     fall = new_dfs[1]
+    pilot = new_dfs[2]
     test_length = 15
-    train_fall = fall.iloc[:-test_length]
-    test_fall = fall.iloc[-test_length:]
+    train_pilot = pilot.iloc[:-test_length]
+    test_pilot = pilot.iloc[-test_length:]
 
     spring_series = TimeSeries.from_dataframe(spring, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
-    fall_train_series = TimeSeries.from_dataframe(train_fall, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
-    fall_test_series = TimeSeries.from_dataframe(test_fall, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
+    fall_series = TimeSeries.from_dataframe(fall, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
+    pilot_train_series = TimeSeries.from_dataframe(train_pilot, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
+    pilot_test_series = TimeSeries.from_dataframe(test_pilot, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
 
     transformer = Scaler()
-    transformer.fit([spring_series, fall_train_series])
+    transformer.fit([spring_series, fall_series, pilot_train_series])
     spring_series = transformer.transform(spring_series)
-    fall_train_series = transformer.transform(fall_train_series)
-    fall_test_series = transformer.transform(fall_test_series)
+    fall_series = transformer.transform(fall_series)
+    pilot_train_series = transformer.transform(pilot_train_series)
+    pilot_test_series = transformer.transform(pilot_test_series)
 
     covariates = []
-    for df in [spring, fall]:
+    for df in [spring, fall, pilot]:
         covariate = TimeSeries.from_dataframe(df, 'Date', 'day', freq='B')
         scaler = Scaler()
         covariate = scaler.fit_transform(covariate)
@@ -164,19 +182,31 @@ def forecast_travel(df_1, df_2):
         covariates.append(covariate)
     spring_covariates = covariates[0]
     fall_covariates = covariates[1]
+    pilot_covariates = covariates[2]
 
     model = ARIMA(q=0, d=1, p=10)
     model.fit(spring_series, future_covariates=spring_covariates)
-    model.fit(fall_train_series, future_covariates=fall_covariates)
-    forecast = model.predict(len(test_fall), future_covariates=fall_covariates)
-    forecast = forecast.slice_intersect(fall_test_series)
-    error = rmse(fall_test_series, forecast)
+    model.fit(fall_series, future_covariates=fall_covariates)
+    model.fit(pilot_train_series, future_covariates=pilot_covariates)
+    forecast = model.predict(len(test_pilot), future_covariates=pilot_covariates)
+    forecast = forecast.slice_intersect(pilot_test_series)
+    error = rmse(pilot_test_series, forecast)
     print(error)
     # plt.plot(spring['Date'], spring_series.values(), color='black', label='spring')
-    plt.plot(fall['Date'][:-test_length], fall_train_series.values(), color='black', label='fall')
-    plt.plot(fall['Date'][-test_length:], fall_test_series.values(), color='black', label='test')
-    plt.plot(fall['Date'][-test_length:], forecast.values(), color='blue', label='forecast')
+    plt.plot(pilot['Date'][:-test_length], pilot_train_series.values(), color='black', label='fall')
+    plt.plot(pilot['Date'][-test_length:], pilot_test_series.values(), color='black', label='test')
+    plt.plot(pilot['Date'][-test_length:], forecast.values(), color='blue', label='forecast')
     plt.legend()
+    plt.xticks(rotation=30)
+    plt.title('Forecasting Travel Time by Day- RMSE: {:.4f}'.format(error))
+    plt.show()
+
+    plt.plot(spring['Date'], spring['Time_to_Stop'], label='Spring 2023')
+    plt.plot(fall['Date'], fall['Time_to_Stop'], label='Fall 2023')
+    plt.plot(pilot['Date'], pilot['Time_to_Stop'], label='Spring 2024')
+    plt.legend()
+    plt.xticks(rotation=30)
+    plt.title('Travel Time by Semester')
     plt.show()
 
 # df = df[df['Direction'] == 'CC']
@@ -193,10 +223,11 @@ def forecast_travel(df_1, df_2):
 
 df_1 = pd.read_excel('historical.xlsx', sheet_name='Fall 2023') #Actually spring
 df_2 = pd.read_excel('historical.xlsx', sheet_name='Spring 2023') #Actually fall
-# print(ttest_ind(df_1['Dwell (s)'], df_2['Dwell (s)'], alternative='two-sided'))
-# print(df_1['Dwell (s)'].mean())
+df_3 = pd.read_excel('pilot_grant.xlsx', sheet_name='Sheet1') #Spring 2024
+# print(ttest_ind(df_2['Dwell (s)'], df_3['Dwell (s)'], alternative='two-sided'))
 # print(df_2['Dwell (s)'].mean())
-# print(df_2.groupby('Stop_Name')['Dwell (s)'].mean())
+# print(df_3['Dwell (s)'].mean())
+# exit()
 #df = df_2.groupby(['Date', 'Route', 'Direction', 'Trip']).apply(lambda group: (group['Arrival'] - group['Departure'].shift(1)).dt.total_seconds())
 
 df_spring = df_1.groupby(['Date', 'Route', 'Direction', 'Trip']).apply(
@@ -212,9 +243,16 @@ df_fall = df_2.groupby(['Date', 'Route', 'Direction', 'Trip']).apply(
     )
 ).drop(['Date', 'Route', 'Direction', 'Trip'], axis=1).reset_index()
 df_fall = df_fall[df_fall['Time_to_Stop'] >= 0]
-df_spring = df_spring[df_spring['Time_to_Stop'] >= 0]
 
-forecast_travel(df_spring, df_fall)
-# print(ttest_ind(df_spring['Time_to_Stop'], df_fall['Time_to_Stop'], alternative='two-sided'))
-# print(df_spring['Time_to_Stop'].mean())
+df_pilot = df_3.groupby(['Date', 'Route', 'Direction', 'Trip']).apply(
+    lambda group: group.sort_values('Arrival').assign(
+        Time_to_Stop=(group['Arrival'] - group['Departure'].shift(1)).dt.total_seconds()
+    )
+).drop(['Date', 'Route', 'Direction', 'Trip'], axis=1).reset_index()
+df_pilot = df_pilot[df_pilot['Time_to_Stop'] >= 0]
+
+forecast_travel(df_spring, df_fall, df_pilot)
+#forecast_dwell(df_spring, df_fall, df_pilot)
+# print(ttest_ind(df_fall['Time_to_Stop'], df_pilot['Time_to_Stop'], alternative='two-sided'))
 # print(df_fall['Time_to_Stop'].mean())
+# print(df_pilot['Time_to_Stop'].mean())
