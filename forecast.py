@@ -252,7 +252,7 @@ df_pilot = df_3.groupby(['Date', 'Route', 'Direction', 'Trip']).apply(
 df_pilot = df_pilot[df_pilot['Time_to_Stop'] >= 0]
 
 forecast_travel(df_spring, df_fall, df_pilot)
-#forecast_dwell(df_spring, df_fall, df_pilot)
+forecast_dwell(df_spring, df_fall, df_pilot)
 # print(ttest_ind(df_fall['Time_to_Stop'], df_pilot['Time_to_Stop'], alternative='two-sided'))
 # print(df_fall['Time_to_Stop'].mean())
 # print(df_pilot['Time_to_Stop'].mean())
