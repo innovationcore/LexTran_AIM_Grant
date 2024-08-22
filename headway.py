@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 import seaborn as sns
 
 def categorize_headway(value):
@@ -21,6 +22,9 @@ def calculateHeadway():
     df_3 = df_pilot.iloc[:len(df_pilot)//2]
     df_4 = df_pilot.iloc[len(df_pilot)//2:]
     results = pd.DataFrame()
+    headways = []
+    total_length = 0
+    filtered_length = 0
 
     for i, og_df in enumerate([df_1, df_2, df_3, df_4]):
         new_df = pd.DataFrame()
@@ -39,14 +43,16 @@ def calculateHeadway():
                 df_filtered = data[~mask].drop(columns='time_diff')
                 df_filtered = df_filtered.sort_values(by=['Stop_Name', 'Departure'])
                 df_filtered['headway'] = (df_filtered.groupby('Stop_Name')['Departure'].diff()).dt.total_seconds() / 60
-
                 new_df = pd.concat([new_df, df_filtered])
 
         new_df = new_df[~new_df['headway'].isna()]
         new_df['headway_adherence'] = new_df['headway'].apply(categorize_headway)
-        print(len(new_df))
-        new_df = new_df[new_df['headway'] < 100] #Remove crazy outliers
-        print(len(new_df))
+        total_length+=len(new_df)
+        headway_mean = new_df['headway'].mean()
+        headway_std = new_df['headway'].std()
+        new_df = new_df[(new_df['headway'] >= headway_mean - 3 * headway_std) & (new_df['headway'] <= headway_mean + 3 * headway_std)]
+        #new_df = new_df[new_df['headway'] < 100] #Remove crazy outliers
+        filtered_length+=len(new_df)
         if i == 0:
             semester = "SPRING 2023"
         elif i == 1:
@@ -61,27 +67,45 @@ def calculateHeadway():
         value_counts = value_counts.reset_index()
         value_counts['semester'] = semester
         results = pd.concat([results, value_counts])
-
-        sns.violinplot(new_df['headway'])
-
-        #new_df['headway'].hist(bins=10, edgecolor='black')
-
-        # Add title and labels
-        plt.title('Headway Times- '+semester)
-        plt.xlabel('Headway (minutes)')
-
-        # Show plot
-        plt.show()
+        headways.append(new_df['headway'])
+        # sns.violinplot(new_df['headway'])
+        #
+        # #new_df['headway'].hist(bins=10, edgecolor='black')
+        #
+        # # Add title and labels
+        # plt.title('Headway Times- '+semester)
+        # plt.xlabel('Headway (minutes)')
+        #
+        # # Show plot
+        # plt.show()
     #new_df.to_csv('headway_results.csv')
+    plt.boxplot(headways)
+    plt.title('Headway Times Comparison')
+    plt.gca().yaxis.set_major_locator(MultipleLocator(10))
+    plt.xlabel('Semester')
+    plt.ylabel('Headway Time')
+    plt.ylim(0, 40)
+    plt.xticks([1,2,3,4],['Spring 2023', 'Fall 2023', 'Spring 2024- Part 1', 'Spring 2024- Part 2'], rotation=10)
+    plt.savefig('headway_comparison.png')
+
+    for headway_list in headways:
+        print(sum(headway_list) / len(headway_list))
+
+
+    print(total_length)
+    print(filtered_length)
+
     order = ['Far Below Ideal', 'Below Ideal', "Ideal", 'Above Ideal', 'Far Above Ideal']
     results['headway_adherence'] = pd.Categorical(results['headway_adherence'], categories=order, ordered=True)
     pivot_df = results.pivot(index='semester', columns='headway_adherence', values='proportion')
+    pivot_df = pivot_df.reindex(['SPRING 2023', 'FALL 2023', 'SPRING 2024 PART 1', 'SPRING 2024 PART 2'])
+    print(pivot_df)
     return pivot_df
 pivot_df = calculateHeadway()
 #pivot_df = pd.read_csv('headway_results.csv', index_col='semester')
 
 # Plot the grouped bar chart
-pivot_df.plot(kind='bar', figsize=(10, 6))
+pivot_df.plot(kind='bar', figsize=(10, 6), color=['blue', 'lightseagreen', 'tab:green', 'gold', 'tab:red'])
 
 # Add title and labels
 plt.title('Headway Adherence')
