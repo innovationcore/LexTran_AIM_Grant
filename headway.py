@@ -19,8 +19,9 @@ def calculateHeadway():
     df_1 = pd.read_excel('historical.xlsx', sheet_name='Fall 2023') #Actually spring
     df_2 = pd.read_excel('historical.xlsx', sheet_name='Spring 2023') #Actually fall
     df_pilot = pd.read_excel('pilot_grant.xlsx', sheet_name='Sheet1') #Spring 2024
-    df_3 = df_pilot.iloc[:len(df_pilot)//2]
-    df_4 = df_pilot.iloc[len(df_pilot)//2:]
+    cutoff_date = df_pilot.iloc[:len(df_pilot)//2]['Date'].max()
+    df_3 = df_pilot[df_pilot['Date'] < cutoff_date]
+    df_4 = df_pilot[df_pilot['Date'] >= cutoff_date]
     results = pd.DataFrame()
     headways = []
     total_length = 0
@@ -64,6 +65,7 @@ def calculateHeadway():
         print(semester)
         value_counts = new_df['headway_adherence'].value_counts(normalize=True).reindex(['Far Below Ideal', 'Below Ideal', 'Ideal', 'Above Ideal', 'Far Above Ideal'])
         print(value_counts)
+        print(new_df['headway'].mean())
         value_counts = value_counts.reset_index()
         value_counts['semester'] = semester
         results = pd.concat([results, value_counts])
@@ -84,13 +86,16 @@ def calculateHeadway():
     plt.gca().yaxis.set_major_locator(MultipleLocator(10))
     plt.xlabel('Semester')
     plt.ylabel('Headway Time')
-    plt.ylim(0, 40)
+    #plt.ylim(0, 40)
     plt.xticks([1,2,3,4],['Spring 2023', 'Fall 2023', 'Spring 2024- Part 1', 'Spring 2024- Part 2'], rotation=10)
     plt.savefig('headway_comparison.png')
 
     for headway_list in headways:
         print(sum(headway_list) / len(headway_list))
-
+    # all_spring = headways[2].tolist() + headways[3].tolist()
+    # all_df = pd.DataFrame({'headway':all_spring})
+    # all_df['adherence'] = all_df['headway'].apply(categorize_headway)
+    # print(all_df['adherence'].value_counts(normalize=True))
 
     print(total_length)
     print(filtered_length)

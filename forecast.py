@@ -14,8 +14,6 @@ def forecast_dwell(df_1, df_2, df_3):
     for df in [df_1, df_2, df_3]:
         df = df.sort_values(by=['Date', 'Arrival'])
 
-        # Look at dwell time only for now
-
         df = df[['Date', 'Day of Week', 'Dwell (s)']]
         grouped = df.groupby('Date').agg({'Dwell (s)': 'mean', 'Day of Week': 'first'}).reset_index()
         grouped['Date'] = pd.to_datetime(grouped['Date'])
@@ -43,6 +41,7 @@ def forecast_dwell(df_1, df_2, df_3):
     spring = new_dfs[0]
     fall = new_dfs[1]
     pilot = new_dfs[2]
+
     test_length = 15
     train_pilot = pilot.iloc[:-test_length]
     test_pilot = pilot.iloc[-test_length:]
@@ -52,16 +51,17 @@ def forecast_dwell(df_1, df_2, df_3):
     pilot_train_series = TimeSeries.from_dataframe(train_pilot, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
     pilot_test_series = TimeSeries.from_dataframe(test_pilot, 'Date', 'Dwell (s)', freq='B', fill_missing_dates=False)
 
+
+    spring_series = Scaler().fit_transform(spring_series)
+    fall_series = Scaler().fit_transform(fall_series)
     transformer = Scaler()
-    transformer.fit([spring_series, fall_series, pilot_train_series])
-    spring_series = transformer.transform(spring_series)
-    fall_series = transformer.transform(fall_series)
+    transformer.fit(pilot_train_series)
     pilot_train_series = transformer.transform(pilot_train_series)
     pilot_test_series = transformer.transform(pilot_test_series)
 
     covariates = []
     for df in [spring, fall, pilot]:
-        covariate = TimeSeries.from_dataframe(df, 'Date', 'day', freq='B')
+        covariate = TimeSeries.from_dataframe(df, 'Date', 'precipitation', freq='B')
         scaler = Scaler()
         covariate = scaler.fit_transform(covariate)
 
@@ -92,7 +92,7 @@ def forecast_dwell(df_1, df_2, df_3):
     forecast = forecast.slice_intersect(pilot_test_series)
     error = rmse(pilot_test_series, forecast)
     print(error)
-    # plt.plot(spring['Date'], spring_series.values(), color='black', label='spring')
+    plt.figure(figsize=(14, 8))
     plt.plot(pilot['Date'][:-test_length], pilot_train_series.values(), color='black', label='fall')
     plt.plot(pilot['Date'][-test_length:], pilot_test_series.values(), color='black', label='test')
     plt.plot(pilot['Date'][-test_length:], forecast.values(), color='blue', label='forecast')
@@ -125,8 +125,6 @@ def forecast_travel(df_1, df_2, df_3):
         df = df.dropna()
         df = df.sort_values(by=['Date', 'Arrival'])
 
-        # Look at dwell time only for now
-
         df = df[['Date', 'Day of Week', 'Time_to_Stop']]
         grouped = df.groupby('Date').agg({'Time_to_Stop': 'mean', 'Day of Week': 'first'}).reset_index()
         grouped['Date'] = pd.to_datetime(grouped['Date'])
@@ -154,6 +152,7 @@ def forecast_travel(df_1, df_2, df_3):
     spring = new_dfs[0]
     fall = new_dfs[1]
     pilot = new_dfs[2]
+
     test_length = 15
     train_pilot = pilot.iloc[:-test_length]
     test_pilot = pilot.iloc[-test_length:]
@@ -163,16 +162,16 @@ def forecast_travel(df_1, df_2, df_3):
     pilot_train_series = TimeSeries.from_dataframe(train_pilot, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
     pilot_test_series = TimeSeries.from_dataframe(test_pilot, 'Date', 'Time_to_Stop', freq='B', fill_missing_dates=False)
 
+    spring_series = Scaler().fit_transform(spring_series)
+    fall_series = Scaler().fit_transform(fall_series)
     transformer = Scaler()
-    transformer.fit([spring_series, fall_series, pilot_train_series])
-    spring_series = transformer.transform(spring_series)
-    fall_series = transformer.transform(fall_series)
+    transformer.fit(pilot_train_series)
     pilot_train_series = transformer.transform(pilot_train_series)
     pilot_test_series = transformer.transform(pilot_test_series)
 
     covariates = []
     for df in [spring, fall, pilot]:
-        covariate = TimeSeries.from_dataframe(df, 'Date', 'day', freq='B')
+        covariate = TimeSeries.from_dataframe(df, 'Date', 'precipitation', freq='B')
         scaler = Scaler()
         covariate = scaler.fit_transform(covariate)
 
@@ -203,7 +202,6 @@ def forecast_travel(df_1, df_2, df_3):
     forecast = forecast.slice_intersect(pilot_test_series)
     error = rmse(pilot_test_series, forecast)
     print(error)
-    # plt.plot(spring['Date'], spring_series.values(), color='black', label='spring')
     plt.figure(figsize=(14, 8))
     plt.plot(pilot['Date'][:-test_length], pilot_train_series.values(), color='black', label='fall')
     plt.plot(pilot['Date'][-test_length:], pilot_test_series.values(), color='black', label='test')
@@ -297,10 +295,10 @@ def forecast_headway(df_1, df_2, df_3):
     pilot_test_series = TimeSeries.from_dataframe(test_pilot, 'Date', 'headway', freq='B',
                                                   fill_missing_dates=False)
 
+    spring_series = Scaler().fit_transform(spring_series)
+    fall_series = Scaler().fit_transform(fall_series)
     transformer = Scaler()
-    transformer.fit([spring_series, fall_series, pilot_train_series])
-    spring_series = transformer.transform(spring_series)
-    fall_series = transformer.transform(fall_series)
+    transformer.fit(pilot_train_series)
     pilot_train_series = transformer.transform(pilot_train_series)
     pilot_test_series = transformer.transform(pilot_test_series)
 
@@ -337,7 +335,6 @@ def forecast_headway(df_1, df_2, df_3):
     forecast = forecast.slice_intersect(pilot_test_series)
     error = rmse(pilot_test_series, forecast)
     print(error)
-    # plt.plot(spring['Date'], spring_series.values(), color='black', label='spring')
     plt.plot(pilot['Date'][:-test_length], pilot_train_series.values(), color='black', label='fall')
     plt.plot(pilot['Date'][-test_length:], pilot_test_series.values(), color='black', label='test')
     plt.plot(pilot['Date'][-test_length:], forecast.values(), color='blue', label='forecast')
@@ -407,8 +404,8 @@ df_pilot = df_3.groupby(['Date', 'Route', 'Direction', 'Trip']).apply(
 ).drop(['Date', 'Route', 'Direction', 'Trip'], axis=1).reset_index()
 df_pilot = df_pilot[df_pilot['Time_to_Stop'] >= 0]
 
-forecast_travel(df_spring, df_fall, df_pilot)
 forecast_dwell(df_spring, df_fall, df_pilot)
+forecast_travel(df_spring, df_fall, df_pilot)
 forecast_headway(df_spring, df_fall, df_pilot)
 # print(ttest_ind(df_fall['Time_to_Stop'], df_pilot['Time_to_Stop'], alternative='two-sided'))
 # print(df_fall['Time_to_Stop'].mean())
