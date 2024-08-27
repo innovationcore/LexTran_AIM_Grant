@@ -258,7 +258,12 @@ def forecast_headway(df_1, df_2, df_3):
         headway_std = new_df['headway'].std()
         new_df = new_df[(new_df['headway'] >= headway_mean - 3 * headway_std) & (new_df['headway'] <= headway_mean + 3 * headway_std)]
         new_df = new_df[['Date', 'headway', 'Day of Week']]
-        new_df = new_df.groupby('Date').agg({'headway':'mean', 'Day of Week':'first'})
+
+        new_df['adherence'] = new_df.groupby('Date')['headway'].transform(
+            lambda x: ((x >= 7) & (x <= 10)).mean() * 100
+        )
+
+        new_df = new_df.groupby('Date').agg({'headway':'mean', 'Day of Week':'first', 'adherence':'first'})
         full_date_range = pd.date_range(start=new_df.index.min(), end=new_df.index.max(), freq='B')
 
         df_reindexed = new_df.reindex(full_date_range)
@@ -278,6 +283,7 @@ def forecast_headway(df_1, df_2, df_3):
         df_reindexed['month'] = df_reindexed['month'].map(
             {'January': 1, 'February': 2, 'March': 3, 'April': 4, 'May': 5, 'June': 6,
              'July': 7, 'August': 8, 'September': 9, 'October': 10, 'November': 11, 'December': 12})
+
 
         new_dfs.append(df_reindexed)
     spring = new_dfs[0]
@@ -404,8 +410,8 @@ df_pilot = df_3.groupby(['Date', 'Route', 'Direction', 'Trip']).apply(
 ).drop(['Date', 'Route', 'Direction', 'Trip'], axis=1).reset_index()
 df_pilot = df_pilot[df_pilot['Time_to_Stop'] >= 0]
 
-forecast_dwell(df_spring, df_fall, df_pilot)
-forecast_travel(df_spring, df_fall, df_pilot)
+#forecast_dwell(df_spring, df_fall, df_pilot)
+#forecast_travel(df_spring, df_fall, df_pilot)
 forecast_headway(df_spring, df_fall, df_pilot)
 # print(ttest_ind(df_fall['Time_to_Stop'], df_pilot['Time_to_Stop'], alternative='two-sided'))
 # print(df_fall['Time_to_Stop'].mean())
